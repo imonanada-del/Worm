@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الدودة التعليمية - طراز 3D بيكسار</title>
+    <!-- تضمين Three.js للرسومات ثلاثية الأبعاد -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-dark: #2E7D32;
+            --accent: #FF9800;
+            --text-dark: #1E293B;
+            --white: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* حاوية مشهد 3D للخلفية */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* الترويسة الثابتة */
+        header {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 12px 25px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        header.minimized {
+            padding: 8px 20px;
+        }
+
+        .header-title {
+            font-size: 1.4rem;
+            color: var(--text-dark);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .student-badge {
+            background: #E8F5E9;
+            padding: 6px 15px;
+            border-radius: 20px;
+            color: var(--primary-dark);
+            font-weight: bold;
+            font-size: 0.95rem;
+            border: 2px solid var(--primary);
+            display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .stats-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #333;
+            background: rgba(255,255,255,0.7);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+
+        .progress-container {
+            width: 120px;
+            height: 14px;
+            background: #E0E0E0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #BBB;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #FF9800, #4CAF50);
+            transition: width 0.4s ease;
+        }
+
+        /* الحاوية الرئيسية */
+        main {
+            width: 100%;
+            max-width: 1050px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 25px 15px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* شاشة البداية */
+        .welcome-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            padding: 35px 30px;
+            border-radius: 30px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 520px;
+            width: 90%;
+            animation: fadeIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .welcome-card h1 {
+            color: var(--primary-dark);
+            margin-bottom: 10px;
+            font-size: 2.2rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .hero-worm-img {
+            width: 170px;
+            height: 170px;
+            margin: 10px auto;
+            animation: bounce 2s infinite ease-in-out;
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.2));
+        }
+
+        .input-group {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: right;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            color: #444;
+            font-size: 1rem;
+        }
+
+        .input-group input {
+            padding: 14px 18px;
+            border: 2px solid #CBD5E1;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            outline: none;
+            transition: all 0.3s;
+            text-align: center;
+            background: #F8FAFC;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary);
+            background: #FFF;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.2);
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            border-radius: 35px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(76, 175, 80, 0.6);
+        }
+
+        /* مسرح اللعبة */
+        .game-board {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .worm-track {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 45px 25px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            max-width: 980px;
+            width: 100%;
+            border: 2px solid rgba(255,255,255,0.8);
+        }
+
+        /* رأس الدودة 3D بيكسار */
+        .worm-head-svg {
+            width: 90px;
+            height: 90px;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            filter: drop-shadow(0 6px 10px rgba(0,0,0,0.2));
+            z-index: 5;
+        }
+
+        .worm-head-svg .eye {
+            animation: blink 4s infinite;
+        }
+
+        .worm-head-svg .antenna {
+            transform-origin: bottom center;
+            animation: wiggle 3s infinite ease-in-out;
+        }
+
+        /* حلقات الدودة */
+        .segment-btn {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            border: 4px solid #FFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #555;
+            background: #E2E8F0;
+            cursor: not-allowed;
+            position: relative;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            transition: all 0.4s ease;
+        }
+
+        .segment-btn.active {
+            background: linear-gradient(135deg, #FFB74D, #F57C00);
+            color: white;
+            cursor: pointer;
+            animation: pulse-ring 1.5s infinite;
+            transform: scale(1.18);
+            z-index: 4;
+            box-shadow: 0 8px 20px rgba(255, 152, 0, 0.5);
+        }
+
+        .segment-btn.solved {
+            background: linear-gradient(135deg, #66BB6A, #388E3C);
+            color: white;
+            cursor: default;
+        }
+
+        .segment-btn.locked {
+            background: #CBD5E1;
+            color: #94A3B8;
+            opacity: 0.85;
+        }
+
+        .segment-btn .check-mark {
+            position: absolute;
+            font-size: 1rem;
+            bottom: 2px;
+            right: 2px;
+            background: #FFF;
+            color: #2E7D32;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* ذيل المكافأة (صندوق هدايا 3D بيكسار) */
+        .treasure-tail {
+            width: 85px;
+            height: 85px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle, #FFF9C4 0%, #FFEE58 100%);
+            border-radius: 50%;
+            border: 4px dashed #FFD700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
+            animation: float 2.5s infinite ease-in-out;
+            cursor: pointer;
+        }
+
+        .treasure-tail svg {
+            width: 55px;
+            height: 55px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+        }
+
+        /* النافذة المنبثقة Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 15px;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 30px;
+            padding: 30px 25px;
+            width: 100%;
+            max-width: 580px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            animation: modalUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 3px solid #E2E8F0;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #F1F5F9;
+            padding-bottom: 12px;
+        }
+
+        .modal-header h3 {
+            color: var(--primary-dark);
+            font-size: 1.35rem;
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            color: #1E293B;
+            margin-bottom: 22px;
+            line-height: 1.6;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: #F8FAFC;
+            border: 2px solid #CBD5E1;
+            padding: 15px 20px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            text-align: right;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #334155;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+
+        .option-btn:hover {
+            background: #F1F5F9;
+            border-color: #94A3B8;
+            transform: translateX(-4px);
+        }
+
+        .option-btn.selected-correct {
+            background: #DCFCE7 !important;
+            border-color: #22C55E !important;
+            color: #15803D !important;
+        }
+
+        .option-btn.selected-wrong {
+            background: #FEE2E2 !important;
+            border-color: #EF4444 !important;
+            color: #B91C1C !important;
+            animation: shake 0.4s ease;
+        }
+
+        .feedback-msg {
+            margin-top: 15px;
+            padding: 12px 18px;
+            background: #FEF3C7;
+            border-right: 5px solid #F59E0B;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #92400E;
+            display: none;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        /* شاشة النهاية */
+        .celebration-card {
+            background: white;
+            border-radius: 35px;
+            padding: 40px 30px;
+            text-align: center;
+            max-width: 580px;
+            width: 90%;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+            display: none;
+            animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 4px solid #FCD34D;
+        }
+
+        .celebration-card h2 {
+            color: #2E7D32;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .gift-icon-3d {
+            width: 110px;
+            height: 110px;
+            margin: 10px auto;
+            animation: bounce 2s infinite ease-in-out;
+            display: block;
+            filter: drop-shadow(0 8px 12px rgba(0,0,0,0.25));
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+            text-align: right;
+        }
+
+        .result-item {
+            background: #F8FAFC;
+            padding: 14px 18px;
+            border-radius: 15px;
+            border: 2px solid #E2E8F0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-item span.label {
+            color: #64748B;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .result-item span.value {
+            font-weight: bold;
+            color: #1E293B;
+            font-size: 1.15rem;
+        }
+
+        .star-rating {
+            font-size: 2.2rem;
+            color: #FFD700;
+            margin: 15px 0;
+            letter-spacing: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+
+        .btn-restart {
+            background: linear-gradient(135deg, #FF9800, #EF6C00);
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(255, 152, 0, 0.4);
+            transition: all 0.2s;
+        }
+
+        .btn-restart:hover {
+            transform: scale(1.06);
+            box-shadow: 0 10px 22px rgba(255, 152, 0, 0.6);
+        }
+
+        /* الأنيميشن والتأثيرات */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(6deg); }
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-10deg); }
+            75% { transform: rotate(10deg); }
+        }
+
+        @keyframes blink {
+            0%, 90%, 100% { transform: scaleY(1); }
+            95% { transform: scaleY(0.1); }
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+            70% { box-shadow: 0 0 0 16px rgba(255, 152, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-9px); }
+            40%, 80% { transform: translateX(9px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes modalUp {
+            from { opacity: 0; transform: scale(0.8) translateY(25px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @media (max-width: 600px) {
+            .header-title { font-size: 1.1rem; }
+            .stats-bar { gap: 8px; }
+            .progress-container { width: 80px; }
+            .segment-btn { width: 52px; height: 52px; font-size: 1.05rem; }
+            .worm-head-svg { width: 70px; height: 70px; }
+            .treasure-tail { width: 70px; height: 70px; }
+            .treasure-tail svg { width: 40px; height: 40px; }
+            .results-grid { grid-template-columns: 1fr; }
+            .question-text { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- حاوية خلفية 3D بيكسار -->
+    <div id="canvas-container"></div>
+
+    <!-- الترويسة العلوية الثابتة -->
+    <header id="mainHeader">
+        <div class="header-title">
+            🐛 <span>الدودة التعليمية 3D</span>
+        </div>
+        <div class="student-badge" id="studentDisplay">
+            الطالب: <span id="studentNameText">---</span>
+        </div>
+        <div class="stats-bar" id="statsBar" style="display: none;">
+            <div class="stat-item" title="عدد النجوم">
+                ⭐ <span id="starCounter">0</span>
+            </div>
+            <div class="stat-item" title="نسبة الإنجاز">
+                <div class="progress-container">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <span id="progressText" style="font-size: 0.8rem; margin-right: 4px;">0%</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- شاشة البداية وإدخال البيانات -->
+        <div class="welcome-card" id="welcomeCard">
+            <h1>مسابقة الدودة الذكية</h1>
+            <p style="color: #555; font-size: 1.05rem; margin-bottom: 10px;">انضم إلى مغامرة الدودة الكرتونية الملونة واكتشف صندوق الكنوز الذهبي!</p>
+            
+            <!-- صورة رسم دودة بيكسار 3D مطورة SVG -->
+            <svg class="hero-worm-img" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <!-- تأثير إضاءة خلفية للظل المجسم -->
+                <ellipse cx="100" cy="165" rx="60" ry="12" fill="rgba(0,0,0,0.15)" />
+                <!-- الجسم المجسم -->
+                <circle cx="65" cy="130" r="32" fill="url(#ballGrad1)" />
+                <circle cx="105" cy="115" r="35" fill="url(#ballGrad2)" />
+                <circle cx="145" cy="95" r="38" fill="url(#ballGrad3)" />
+                <!-- الرأس بيكسار 3D -->
+                <circle cx="160" cy="55" r="38" fill="url(#headGrad)" />
+                <!-- العيون اللامعة الكرتونية -->
+                <circle cx="148" cy="45" r="8.5" fill="white" />
+                <circle cx="151" cy="45" r="4" fill="#1E293B" />
+                <circle cx="149" cy="43" r="1.5" fill="white" /> <!-- لمعة البؤبؤ -->
+
+                <circle cx="174" cy="45" r="8.5" fill="white" />
+                <circle cx="177" cy="45" r="4" fill="#1E293B" />
+                <circle cx="175" cy="43" r="1.5" fill="white" />
+                
+                <!-- الابتسامة -->
+                <path d="M 150 65 Q 163 80 178 65" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round" />
+                <!-- الخدود الوردية البارزة -->
+                <circle cx="143" cy="58" r="6" fill="#FF8A80" opacity="0.7" />
+                <circle cx="182" cy="58" r="6" fill="#FF8A80" opacity="0.7" />
+                <!-- قرون الاستشعار مع نجوم متوهجة -->
+                <path d="M 152 22 Q 135 5 125 10" stroke="#2E7D32" stroke-width="4.5" fill="none" stroke-linecap="round" />
+                <circle cx="123" cy="11" r="7" fill="#FFD700" />
+                <path d="M 170 22 Q 185 5 190 10" stroke="#2E7D32" stroke-width="4.5" fill="none" stroke-linecap="round" />
+                <circle cx="191" cy="11" r="7" fill="#FFD700" />
+
+                <defs>
+                    <radialGradient id="ballGrad1" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#A5D6A7"/><stop offset="100%" stop-color="#388E3C"/>
+                    </radialGradient>
+                    <radialGradient id="ballGrad2" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#81C784"/><stop offset="100%" stop-color="#2E7D32"/>
+                    </radialGradient>
+                    <radialGradient id="ballGrad3" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#66BB6A"/><stop offset="100%" stop-color="#1B5E20"/>
+                    </radialGradient>
+                    <radialGradient id="headGrad" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#4CAF50"/><stop offset="100%" stop-color="#1E4620"/>
+                    </radialGradient>
+                </defs>
+            </svg>
+
+            <div class="input-group">
+                <label for="studentNameInput">اسم الطالب / الطالبة:</label>
+                <input type="text" id="studentNameInput" placeholder="اكتب اسمك الثلاثي هنا..." autocomplete="off">
+            </div>
+
+            <button class="btn-start" onclick="startGame()">ابدأ مغامرة الدودة 🚀</button>
+        </div>
+
+        <!-- مسرح اللعبة والدودة -->
+        <div class="game-board" id="gameBoard">
+            <div class="worm-track" id="wormTrack">
+                <!-- سيتم إنشاؤها عبر JavaScript -->
+            </div>
+        </div>
+
+        <!-- شاشة النهاية والتكريم -->
+        <div class="celebration-card" id="celebrationCard">
+            <!-- نجمة بيكسار 3D في النهاية بدلاً من علبة الهدايا -->
+            <svg class="gift-icon-3d" viewBox="0 0 100 100">
+                <defs>
+                    <radialGradient id="starGrad3D" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#FFF176"/><stop offset="100%" stop-color="#F57F17"/>
+                    </radialGradient>
+                </defs>
+                <polygon points="50,10 61,35 88,38 67,56 74,82 50,68 26,82 33,56 12,38 39,35" fill="url(#starGrad3D)" stroke="#FF8F00" stroke-width="2"/>
+            </svg>
+            <h2>أحسنت يا بطل الأبطال! 🎉</h2>
+            <p style="color: #475569; font-size: 1.1rem;" id="completionMessage">لقد وصلت للنجمة الذهبية وأنهيت الأسئلة بجدارة تامة!</p>
+            
+            <div class="star-rating" id="starRatingDisplay">⭐⭐⭐⭐⭐</div>
+
+            <div class="results-grid">
+                <div class="result-item">
+                    <span class="label">اسم الطالب:</span>
+                    <span class="value" id="resStudentName">-</span>
+                </div>
+                <div class="result-item">
+                    <span class="label">الدرجة النهائية:</span>
+                    <span class="value" id="resScore">0%</span>
+                </div>
+                <div class="result-item">
+                    <span class="label">الإجابات الصحيحة:</span>
+                    <span class="value" id="resCorrect">0</span>
+                </div>
+                <div class="result-item">
+                    <span class="label">عدد الأخطاء:</span>
+                    <span class="value" id="resWrong">0</span>
+                </div>
+                <div class="result-item">
+                    <span class="label">مجموع النجوم:</span>
+                    <span class="value" id="resStars">0</span>
+                </div>
+                <div class="result-item">
+                    <span class="label">الوقت المستغرق:</span>
+                    <span class="value" id="resTime">00:00</span>
+                </div>
+            </div>
+
+            <button class="btn-restart" onclick="resetGame()">العب مرة أخرى 🔄</button>
+        </div>
+    </main>
+
+    <!-- النافذة المنبثقة للسؤال -->
+    <div class="modal-overlay" id="questionModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="questionTitle">السؤال 1</h3>
+            </div>
+            
+            <div class="question-text" id="questionText">
+                نص السؤال هنا...
+            </div>
+
+            <div class="options-grid" id="optionsContainer">
+                <!-- أزرار الخيارات -->
+            </div>
+
+            <div class="feedback-msg" id="feedbackMsg"></div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== إعداد خلفية 3D Pixar عبر Three.js ====================
+        let scene, camera, renderer, floatingObjects = [];
+
+        function init3DBackground() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // أضواء ثلاثية الأبعاد بأسلوب الاستوديو
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xfffaed, 1.2);
+            directionalLight.position.set(10, 20, 15);
+            scene.add(directionalLight);
+
+            const pointLight = new THREE.PointLight(0xffaa33, 1.5, 50);
+            pointLight.position.set(-15, -10, 10);
+            scene.add(pointLight);
+
+            // إضافة كرات عائمة ملونة بأسلوب بيكسار
+            const geometryTypes = [
+                new THREE.SphereGeometry(1.2, 32, 32),
+                new THREE.DodecahedronGeometry(1.3),
+                new THREE.OctahedronGeometry(1.3)
+            ];
+
+            const colors = [0x4CAF50, 0xFF9800, 0x00BCD4, 0xE91E63, 0x9C27B0, 0xFFEB3B];
+
+            for (let i = 0; i < 25; i++) {
+                const geom = geometryTypes[Math.floor(Math.random() * geometryTypes.length)];
+                const mat = new THREE.MeshPhysicalMaterial({
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    roughness: 0.2,
+                    metalness: 0.1,
+                    clearcoat: 0.8,
+                    clearcoatRoughness: 0.1,
+                    transmission: 0.1
+                });
+
+                const mesh = new THREE.Mesh(geom, mat);
+                mesh.position.set(
+                    (Math.random() - 0.5) * 45,
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.5) * 20 - 5
+                );
+
+                mesh.userData = {
+                    speedX: (Math.random() - 0.5) * 0.02,
+                    speedY: (Math.random() - 0.5) * 0.02,
+                    rotSpeed: (Math.random() - 0.5) * 0.03
+                };
+
+                scene.add(mesh);
+                floatingObjects.push(mesh);
+            }
+
+            window.addEventListener('resize', onWindowResize);
+            animate3D();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            floatingObjects.forEach(obj => {
+                obj.position.x += obj.userData.speedX;
+                obj.position.y += obj.userData.speedY;
+                obj.rotation.x += obj.userData.rotSpeed;
+                obj.rotation.y += obj.userData.rotSpeed;
+
+                if (obj.position.x > 25) obj.position.x = -25;
+                if (obj.position.x < -25) obj.position.x = 25;
+                if (obj.position.y > 18) obj.position.y = -18;
+                if (obj.position.y < -18) obj.position.y = 18;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init3DBackground;
+
+
+        // ==================== بنك الأسئلة المعتمد ====================
+        const questionsData = [
+            // اختيار من متعدد (10 أسئلة)
+            {
+                type: 'mcq',
+                question: 'اتصف الأبرار بصفات جميلة فكان جزاؤهم...',
+                options: [
+                    'أمنهم الله مما يخافون',
+                    'أكرمهم وأعطاهم نضرة في وجوههم وسروراً في قلوبهم',
+                    'جميع ما سبق'
+                ],
+                correct: 2
+            },
+            {
+                type: 'mcq',
+                question: 'ما الجزاء الذي أعدّه الله تعالى للأبرار بسبب صبرهم في الدنيا؟',
+                options: [
+                    'أموالاً وتجارة',
+                    'جنةً وحريراً'
+                ],
+                correct: 1
+            },
+            {
+                type: 'mcq',
+                question: 'كيف يكون الجو في الجنة للأبرار؟',
+                options: [
+                    'معتدلاً لا يجدون فيه حراً شديداً ولا برداً قارساً',
+                    'بارداً جداً وممطراً'
+                ],
+                correct: 0
+            },
+            {
+                type: 'mcq',
+                question: 'ما صِفَة الثمار والظلال في الجنة للأبرار؟',
+                options: [
+                    'قريبة منهم وسهلة القطاف في أي وقت',
+                    'بعيدة ويصعب الوصول إليها'
+                ],
+                correct: 0
+            },
+            {
+                type: 'mcq',
+                question: 'ما هي الأواني والأكواب التي يُطاف بها على أهل الجنة بشرابهم؟',
+                options: [
+                    'أوانٍ من فخار وطين',
+                    'أوانٍ من فضة وأكواب من زجاج شفاف'
+                ],
+                correct: 1
+            },
+            {
+                type: 'mcq',
+                question: 'ما هو اسم العين في الجنة التي يُسقى منها أهل الجنة شراباً ممزوجاً بالزنجبيل؟',
+                options: [
+                    'سلسبيل',
+                    'زمزم'
+                ],
+                correct: 0
+            },
+            {
+                type: 'mcq',
+                question: 'كيف وَصَفَ الله تعالى الغلمان الذين يطوفون على أهل الجنة لجمالهم وصفائهم؟',
+                options: [
+                    'كأنهم نجوم لامعة',
+                    'كأنهم لؤلؤ منثور'
+                ],
+                correct: 1
+            },
+            {
+                type: 'mcq',
+                question: 'ما هو وصف ثياب أهل الجنة التي يلبسونها في الجنة؟',
+                options: [
+                    'ثياب من سندس خُضْر وإستبرق',
+                    'ثياب قطنية بيضاء'
+                ],
+                correct: 0
+            },
+            {
+                type: 'mcq',
+                question: 'بِمَ يتزيّن أهل الجنة في أيديهم من الحلي؟',
+                options: [
+                    'أساور من حديد',
+                    'أساور من فضة'
+                ],
+                correct: 1
+            },
+            {
+                type: 'mcq',
+                question: 'ماذا سقى الله تعالى أهل الجنة بفضله وكرمه؟',
+                options: [
+                    'شراباً طهوراً',
+                    'عسل مصفى فقط'
+                ],
+                correct: 0
+            },
+            // صح أو خطأ (8 أسئلة)
+            {
+                type: 'tf',
+                question: 'كان جزاء الأبرار جنة وحريراً.',
+                options: ['صح', 'خطأ'],
+                correct: 0
+            },
+            {
+                type: 'tf',
+                question: 'الجو في الجنة شديد الحرارة.',
+                options: ['صح', 'خطأ'],
+                correct: 1
+            },
+            {
+                type: 'tf',
+                question: 'يدور عليهم الخدام بأواني الطعام الفضية.',
+                options: ['صح', 'خطأ'],
+                correct: 0
+            },
+            {
+                type: 'tf',
+                question: 'أكواب الشراب مصنوعة من الخشب.',
+                options: ['صح', 'خطأ'],
+                correct: 1
+            },
+            {
+                type: 'tf',
+                question: 'الخدام غلمان دائمون على حالهم في الشباب والجمال.',
+                options: ['صح', 'خطأ'],
+                correct: 0
+            },
+            {
+                type: 'tf',
+                question: 'يشربون من عين في الجنة تسمى سلسبيلًا.',
+                options: ['صح', 'خطأ'],
+                correct: 0
+            },
+            {
+                type: 'tf',
+                question: 'عليهم ثياب بطائنها من الحرير الرقيق الأخضر (السندس).',
+                options: ['صح', 'خطأ'],
+                correct: 0
+            },
+            {
+                type: 'tf',
+                question: 'الأساور في الجنة مصنوعة من النحاس.',
+                options: ['صح', 'خطأ'],
+                correct: 1
+            }
+        ];
+
+        // ==================== متغيرات اللعبة ====================
+        let studentName = "";
+        let currentQuestionIndex = 0;
+        let totalQuestions = questionsData.length;
+        let correctAnswersCount = 0;
+        let wrongAnswersCount = 0;
+        let starsEarned = 0;
+        let startTime = null;
+
+        // ==================== نظام الصوتيات (Web Audio API) ====================
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'correct') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1);
+                    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2);
+                    osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.3);
+                    
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'wrong') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.setValueAtTime(180, now + 0.15);
+                    
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'win') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50, 880, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.frequency.value = freq;
+                        g.gain.setValueAtTime(0.25, now + idx * 0.12);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.25);
+                        o.start(now + idx * 0.12);
+                        o.stop(now + idx * 0.12 + 0.25);
+                    });
+                }
+            } catch (e) {
+                console.log("Audio play error:", e);
+            }
+        }
+
+        // ==================== بدء المسابقة ====================
+        function startGame() {
+            const input = document.getElementById('studentNameInput');
+            const name = input.value.trim();
+
+            if (!name) {
+                input.style.borderColor = '#EF4444';
+                input.focus();
+                alert('عذراً، يرجى إدخال اسم الطالب للبدء!');
+                return;
+            }
+
+            studentName = name;
+            document.getElementById('studentNameText').textContent = studentName;
+            document.getElementById('studentDisplay').style.display = 'block';
+            document.getElementById('statsBar').style.display = 'flex';
+            document.getElementById('mainHeader').classList.add('minimized');
+
+            document.getElementById('welcomeCard').style.display = 'none';
+            document.getElementById('gameBoard').style.display = 'flex';
+
+            startTime = new Date();
+            renderWormTrack();
+            updateStatsUI();
+            initAudio();
+        }
+
+        // ==================== بناء الحلقات والدودة ====================
+        function renderWormTrack() {
+            const track = document.getElementById('wormTrack');
+            track.innerHTML = '';
+
+            // رأس الدودة 3D
+            const headContainer = document.createElement('div');
+            headContainer.id = 'wormHead';
+            headContainer.innerHTML = `
+                <svg class="worm-head-svg" viewBox="0 0 100 100">
+                    <circle cx="50" cy="55" r="40" fill="url(#headGrad2)" />
+                    <path class="antenna" d="M 35 20 Q 25 2 20 6" stroke="#1E4620" stroke-width="4.5" fill="none" />
+                    <circle cx="18" cy="7" r="6.5" fill="#FFD700" />
+                    <path class="antenna" d="M 65 20 Q 75 2 80 6" stroke="#1E4620" stroke-width="4.5" fill="none" />
+                    <circle cx="82" cy="7" r="6.5" fill="#FFD700" />
+                    
+                    <circle class="eye" cx="37" cy="45" r="8.5" fill="white" />
+                    <circle cx="39" cy="45" r="4" fill="#1E293B" />
+                    <circle cx="37" cy="43" r="1.5" fill="white" />
+
+                    <circle class="eye" cx="63" cy="45" r="8.5" fill="white" />
+                    <circle cx="61" cy="45" r="4" fill="#1E293B" />
+                    <circle cx="63" cy="43" r="1.5" fill="white" />
+
+                    <circle cx="27" cy="58" r="6" fill="#FF8A80" opacity="0.7"/>
+                    <circle cx="73" cy="58" r="6" fill="#FF8A80" opacity="0.7"/>
+                    <path id="wormMouth" d="M 38 66 Q 50 80 62 66" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" />
+                    
+                    <defs>
+                        <radialGradient id="headGrad2" cx="30%" cy="30%" r="70%">
+                            <stop offset="0%" stop-color="#66BB6A"/><stop offset="100%" stop-color="#2E7D32"/>
+                        </radialGradient>
+                    </defs>
+                </svg>
+            `;
+            track.appendChild(headContainer);
+
+            // الحلقات
+            questionsData.forEach((q, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'segment-btn';
+                btn.id = `segment-${idx}`;
+                btn.textContent = idx + 1;
+
+                if (idx < currentQuestionIndex) {
+                    btn.classList.add('solved');
+                    btn.innerHTML = `${idx + 1}<span class="check-mark">✓</span>`;
+                } else if (idx === currentQuestionIndex) {
+                    btn.classList.add('active');
+                    btn.onclick = () => openQuestionModal(idx);
+                } else {
+                    btn.classList.add('locked');
+                }
+
+                track.appendChild(btn);
+            });
+
+            // صندوق الهدايا الذهبي في النهاية
+            const tailContainer = document.createElement('div');
+            tailContainer.className = 'treasure-tail';
+            tailContainer.title = 'المكافأة النهائية!';
+            tailContainer.innerHTML = `
+                <svg viewBox="0 0 24 24">
+                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="#FFD700" stroke="#FFA000" stroke-width="1.5"/>
+                </svg>
+            `;
+            track.appendChild(tailContainer);
+        }
+
+        // ==================== تفاعلات نافذة السؤال ====================
+        function openQuestionModal(index) {
+            if (index !== currentQuestionIndex) return;
+
+            const qData = questionsData[index];
+            document.getElementById('questionTitle').textContent = `الحلقة ${index + 1} من ${totalQuestions}`;
+            document.getElementById('questionText').textContent = qData.question;
+            
+            const feedbackMsg = document.getElementById('feedbackMsg');
+            feedbackMsg.style.display = 'none';
+            feedbackMsg.textContent = '';
+
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = '';
+
+            qData.options.forEach((optText, optIdx) => {
+                const optBtn = document.createElement('button');
+                optBtn.className = 'option-btn';
+                optBtn.innerHTML = `<span>${optText}</span>`;
+                optBtn.onclick = () => handleAnswer(optIdx, qData.correct, optBtn);
+                container.appendChild(optBtn);
+            });
+
+            document.getElementById('questionModal').style.display = 'flex';
+        }
+
+        function handleAnswer(selectedIdx, correctIdx, btnEl) {
+            const allOptionBtns = document.querySelectorAll('.option-btn');
+            const feedbackMsg = document.getElementById('feedbackMsg');
+
+            if (selectedIdx === correctIdx) {
+                btnEl.classList.add('selected-correct');
+                playSound('correct');
+
+                starsEarned += 1;
+                correctAnswersCount++;
+
+                allOptionBtns.forEach(b => b.style.pointerEvents = 'none');
+
+                setTimeout(() => {
+                    document.getElementById('questionModal').style.display = 'none';
+                    advanceWorm();
+                }, 1000);
+
+            } else {
+                btnEl.classList.add('selected-wrong');
+                playSound('wrong');
+                wrongAnswersCount++;
+
+                feedbackMsg.style.display = 'block';
+                feedbackMsg.textContent = '💪 أحسنت المحاولة! فكّر مجدداً واختر الإجابة الصحيحة.';
+
+                setTimeout(() => {
+                    btnEl.classList.remove('selected-wrong');
+                }, 1000);
+            }
+        }
+
+        function advanceWorm() {
+            currentQuestionIndex++;
+            updateStatsUI();
+
+            if (currentQuestionIndex >= totalQuestions) {
+                playSound('win');
+                showCelebration();
+            } else {
+                renderWormTrack();
+                const head = document.getElementById('wormHead');
+                if (head) {
+                    head.style.transform = 'scale(1.2) rotate(10deg)';
+                    setTimeout(() => head.style.transform = 'scale(1) rotate(0deg)', 400);
+                }
+            }
+        }
+
+        function updateStatsUI() {
+            document.getElementById('starCounter').textContent = starsEarned;
+            const percentage = Math.round((currentQuestionIndex / totalQuestions) * 100);
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = `${percentage}% (${currentQuestionIndex}/${totalQuestions})`;
+        }
+
+        function showCelebration() {
+            const endTime = new Date();
+            const timeDiff = Math.floor((endTime - startTime) / 1000);
+            const minutes = Math.floor(timeDiff / 60);
+            const seconds = timeDiff % 60;
+            const timeFormatted = `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+            const finalScorePercentage = Math.round((correctAnswersCount / (correctAnswersCount + wrongAnswersCount)) * 100) || 100;
+
+            document.getElementById('gameBoard').style.display = 'none';
+            document.getElementById('celebrationCard').style.display = 'block';
+
+            document.getElementById('resStudentName').textContent = studentName;
+            document.getElementById('resScore').textContent = `${finalScorePercentage}%`;
+            document.getElementById('resCorrect').textContent = correctAnswersCount;
+            document.getElementById('resWrong').textContent = wrongAnswersCount;
+            document.getElementById('resStars').textContent = starsEarned;
+            document.getElementById('resTime').textContent = timeFormatted;
+
+            let starIcons = '⭐⭐⭐⭐⭐';
+            if (finalScorePercentage < 60) starIcons = '⭐⭐⭐';
+            else if (finalScorePercentage < 85) starIcons = '⭐⭐⭐⭐';
+            document.getElementById('starRatingDisplay').textContent = starIcons;
+        }
+
+        function resetGame() {
+            currentQuestionIndex = 0;
+            correctAnswersCount = 0;
+            wrongAnswersCount = 0;
+            starsEarned = 0;
+            
+            document.getElementById('celebrationCard').style.display = 'none';
+            document.getElementById('gameBoard').style.display = 'flex';
+            
+            startTime = new Date();
+            renderWormTrack();
+            updateStatsUI();
+        }
+    </script>
+</body>
+</html>
